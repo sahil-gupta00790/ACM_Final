@@ -1,121 +1,164 @@
-from ultralytics import YOLO
+import tkinter as tk
+from tkinter import filedialog, ttk
 import cv2
-import csv
+import threading
+import time
+from PIL import Image, ImageTk
 import os
 from datetime import timedelta
-import argparse
+import csv
 
-def door_detection(
-    model_path,
-    video_path,
-    output_csv_path,
-    confidence_threshold=0.2,
-    frame_interval=1,
-    save_frames=False,
-    save_frames_path=None
-):
-    try:
-        # Load the YOLO model
-        model = YOLO(model_path)
+from ultralytics import YOLO
 
-        # Open the video file
-        video = cv2.VideoCapture(video_path)
-        if not video.isOpened():
-            raise ValueError(f"Unable to open video file: {video_path}")
-
-        # Get video properties
-        fps = video.get(cv2.CAP_PROP_FPS)
-        total_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-
-        # Ensure the output directory exists
-        os.makedirs(os.path.dirname(output_csv_path), exist_ok=True)
+class VideoAnalysisGUI:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Video Analysis Tool")
+        self.root.geometry("1000x800")
         
-        # Prepare CSV file
-        with open(output_csv_path, 'w', newline='') as csvfile:
-            csv_writer = csv.writer(csvfile)
-            csv_writer.writerow(['Timestamp', 'Frame', 'Door Detected', 'Confidence'])
-
-            frame_count = 0
-            while True:
-                ret, frame = video.read()
+        self.style = ttk.Style()
+        self.style.theme_use("clam")
+        
+        self.create_widgets()
+        
+        self.video_path = None
+        self.processing = False
+        
+        # Load YOLO models
+        self.cctv_model = YOLO(os.path.join("..", "besttrain1.pt"))
+        self.door_model = YOLO(os.path.join("..", "doors.pt"))
+        
+    def create_widgets(self):
+        # Main frame
+        main_frame = ttk.Frame(self.root, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Video selection
+        select_button = ttk.Button(main_frame, text="Select Video", command=self.select_video)
+        select_button.pack(pady=10)
+        
+        # Video display
+        self.video_canvas = tk.Canvas(main_frame, bg="black", width=640, height=480)
+        self.video_canvas.pack(pady=10)
+        
+        # Control buttons
+        control_frame = ttk.Frame(main_frame)
+        control_frame.pack(fill=tk.X, pady=10)
+        
+        self.start_button = ttk.Button(control_frame, text="Start Analysis", command=self.start_analysis)
+        self.start_button.pack(side=tk.LEFT, padx=5)
+        
+        self.stop_button = ttk.Button(control_frame, text="Stop Analysis", command=self.stop_analysis, state=tk.DISABLED)
+        self.stop_button.pack(side=tk.LEFT, padx=5)
+        
+        # Results display
+        self.results_text = tk.Text(main_frame, height=15, wrap=tk.WORD)
+        self.results_text.pack(fill=tk.BOTH, expand=True, pady=10)
+        
+    def select_video(self):
+        self.video_path = filedialog.askopenfilename(filetypes=[("Video Files", "*.mp4")])
+        if self.video_path:
+            self.results_text.insert(tk.END, f"Selected video: {self.video_path}\n")
+            self.start_button.config(state=tk.NORMAL)
+    
+    def start_analysis(self):
+        if not self.video_path:
+            return
+        
+        self.processing = True
+        self.start_button.config(state=tk.DISABLED)
+        self.stop_button.config(state=tk.NORMAL)
+        
+        threading.Thread(target=self.process_video, daemon=True).start()
+    
+    def stop_analysis(self):
+        self.processing = False
+        self.start_button.config(state=tk.NORMAL)
+        self.stop_button.config(state=tk.DISABLED)
+    
+    def process_video(self):
+        cap = cv2.VideoCapture(self.video_path)
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        frame_count = 0
+        
+        cctv_csv_path = os.path.join("..", "cctv_output.csv")
+        door_csv_path = os.path.join("..", "door_output.csv")
+        
+        with open(cctv_csv_path, 'w', newline='') as cctv_csv, open(door_csv_path, 'w', newline='') as door_csv:
+            cctv_writer = csv.writer(cctv_csv)
+            door_writer = csv.writer(door_csv)
+            
+            cctv_writer.writerow(['Timestamp', 'Frame', 'CCTV Detected', 'Confidence'])
+            door_writer.writerow(['Timestamp', 'Frame', 'Door Detected', 'Confidence'])
+            
+            while cap.isOpened() and self.processing:
+                ret, frame = cap.read()
                 if not ret:
                     break
-
+                
                 frame_count += 1
-                if frame_count % frame_interval != 0:
-                    continue
-
-                # Calculate the correct timestamp
                 seconds = (frame_count - 1) / fps
                 timestamp = str(timedelta(seconds=seconds)).split('.')[0] + '.' + f"{seconds:.1f}".split('.')[1]
-
-                # Perform detection
-                results = model(frame, conf=confidence_threshold)
-
-                # Post-process the detection
-                is_door = False
-                max_confidence = 0
-
-                if len(results[0].boxes) > 0:
-                    is_door = True
-                    for box in results[0].boxes:
-                        confidence = box.conf.item()
-                        if confidence > max_confidence:
-                            max_confidence = confidence
-
-                # Write results to CSV
-                csv_writer.writerow([timestamp, f'entry_exit_frame_{frame_count:06d}', is_door, f'{max_confidence:.4f}'])
-
-                # Optionally save the frame
-                if save_frames and save_frames_path:
-                    os.makedirs(save_frames_path, exist_ok=True)
-                    frame_with_text = results[0].plot()
-                    text = f"Door: {'Yes' if is_door else 'No'} ({max_confidence:.2f})"
-                    cv2.putText(frame_with_text, text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0) if is_door else (0, 0, 255), 2)
-                    
-                    frame_filename = os.path.join(save_frames_path, f'frame_{frame_count:06d}.jpg')
-                    cv2.imwrite(frame_filename, frame_with_text)
-
+                
+                # CCTV detection
+                cctv_results = self.cctv_model(frame)
+                cctv_detections = cctv_results[0].boxes.data
+                is_cctv = False
+                cctv_confidence = 0
+                
+                for det in cctv_detections:
+                    confidence = det[4].item()
+                    if confidence > cctv_confidence:
+                        cctv_confidence = confidence
+                    if confidence > 0.2:
+                        is_cctv = True
+                
+                cctv_writer.writerow([timestamp, f'cctv_frame_{frame_count:06d}', is_cctv, f'{cctv_confidence:.4f}'])
+                
+                # Door detection
+                door_results = self.door_model(frame, conf=0.2)
+                is_door = len(door_results[0].boxes) > 0
+                door_confidence = max([box.conf.item() for box in door_results[0].boxes]) if is_door else 0
+                
+                door_writer.writerow([timestamp, f'door_frame_{frame_count:06d}', is_door, f'{door_confidence:.4f}'])
+                
+                # Update results display
+                self.update_results(timestamp, is_cctv, cctv_confidence, is_door, door_confidence)
+                
+                # Display frame
+                self.display_frame(frame, is_cctv, cctv_confidence, is_door, door_confidence)
+                
                 print(f"Processed frame {frame_count}/{total_frames}")
-
-        video.release()
-        print(f"Detection completed. Results saved to {output_csv_path}")
-
-    except Exception as e:
-        print(f"An error occurred: {str(e)}")
-        if 'video' in locals():
-            video.release()
-
-def main():
-    # Default parameters
-    default_model_path = os.path.join("..","doors.pt")
-    default_video_path = os.path.join("..","video.mp4")
-    default_output_csv_path = os.path.join("..","output.csv")
-    default_confidence = 0.2
-    default_interval = 15
-    default_save_frames = True
-    default_frames_path = os.path.join(".." , "door_frames_output")
-
-    #parser = argparse.ArgumentParser(description="Door Detection in Video")
-    #parser.add_argument("--model-path", default=default_model_path, help="Path to the YOLO model file")
-    #parser.add_argument("--video-path", default=default_video_path, help="Path to the input video file")
-    #parser.add_argument("--output-csv-path", default=default_output_csv_path, help="Path to save the output CSV file")
-    #parser.add_argument("--confidence", type=float, default=default_confidence, help="Confidence threshold for detection")
-    #parser.add_argument("--interval", type=int, default=default_interval, help="Frame interval for processing")
-    #parser.add_argument("--save-frames", action="store_true", default=default_save_frames, help="Save processed frames")
-    #parser.add_argument("--frames-path", default=default_frames_path, help="Path to save processed frames")
-#
-    #args = parser.parse_args()
-
-    door_detection(
-        model_path=default_model_path,
-        video_path=default_video_path,
-        output_csv_path=default_output_csv_path,
-        confidence_threshold=default_confidence,
-        frame_interval=default_interval,
-        save_frames=default_save_frames,
-        save_frames_path=default_frames_path
-    )
+                
+                time.sleep(0.1)  # Adjust delay as needed
+        
+        cap.release()
+        self.results_text.insert(tk.END, "Analysis completed.\n")
+        self.stop_analysis()
+    
+    def update_results(self, timestamp, is_cctv, cctv_confidence, is_door, door_confidence):
+        self.results_text.insert(tk.END, f"Timestamp: {timestamp}\n")
+        self.results_text.insert(tk.END, f"CCTV detected: {'Yes' if is_cctv else 'No'} (Confidence: {cctv_confidence:.2f})\n")
+        self.results_text.insert(tk.END, f"Door detected: {'Yes' if is_door else 'No'} (Confidence: {door_confidence:.2f})\n")
+        self.results_text.insert(tk.END, "-" * 50 + "\n")
+        self.results_text.see(tk.END)
+    
+    def display_frame(self, frame, is_cctv, cctv_confidence, is_door, door_confidence):
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        frame = cv2.resize(frame, (640, 480))
+        
+        cctv_text = f"CCTV: {'Yes' if is_cctv else 'No'} ({cctv_confidence:.2f})"
+        door_text = f"Door: {'Yes' if is_door else 'No'} ({door_confidence:.2f})"
+        
+        cv2.putText(frame, cctv_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0) if is_cctv else (0, 0, 255), 2)
+        cv2.putText(frame, door_text, (10, 70), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0) if is_door else (0, 0, 255), 2)
+        
+        photo = ImageTk.PhotoImage(image=Image.fromarray(frame))
+        self.video_canvas.create_image(0, 0, image=photo, anchor=tk.NW)
+        self.video_canvas.image = photo
 
 if __name__ == "__main__":
-    main()
+    root = tk.Tk()
+    app = VideoAnalysisGUI(root)
+    root.mainloop()

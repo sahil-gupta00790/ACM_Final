@@ -1,0 +1,18 @@
+Timestamp,Frame,CCTV Detected,Confidence
+0:00:00.5,frame_000015,False,0.0000
+0:00:00.0,frame_000030,False,0.0000
+0:00:01.5,frame_000045,False,0.0000
+0:00:01.0,frame_000060,False,0.0000
+0:00:02.5,frame_000075,False,0.0000
+0:00:02.0,frame_000090,False,0.0000
+0:00:03.5,frame_000105,False,0.0000
+0:00:03.0,frame_000120,False,0.0000
+0:00:04.5,frame_000135,False,0.0000
+0:00:04.0,frame_000150,False,0.0000
+0:00:05.5,frame_000165,False,0.0000
+0:00:05.0,frame_000180,False,0.0000
+0:00:06.5,frame_000195,False,0.0000
+0:00:06.0,frame_000210,False,0.0000
+0:00:07.5,frame_000225,True,0.4137
+0:00:07.0,frame_000240,False,0.0000
+0:00:08.5,frame_000255,True,0.2791

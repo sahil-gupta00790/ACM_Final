@@ -5,7 +5,6 @@ import base64
 
 
 
-
 API_KEY = 'AIzaSyDkcWpKkUSy3LG4jwBDZYpCYpbhD9WQC0Q'
 API_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent'
 

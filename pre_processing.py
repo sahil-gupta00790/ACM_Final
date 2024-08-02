@@ -1,8 +1,7 @@
-import pre_processing
 import requests
 import base64
 
-pre_processing.preprocess_image(image_path='image.py')
+
 
 
 

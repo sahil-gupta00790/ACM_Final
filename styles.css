@@ -1,0 +1,104 @@
+/* Modern GUI Styles */
+
+:root {
+    --primary-color: #4CAF50;
+    --secondary-color: #2196F3;
+    --background-color: #f0f0f0;
+    --text-color: #333;
+    --border-radius: 8px;
+    --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Main window */
+  .root {
+    background-color: var(--background-color);
+  }
+  
+  /* Buttons */
+  .button {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: var(--border-radius);
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  
+  .button:hover {
+    background-color: #45a049;
+  }
+  
+  .button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+  }
+  
+  /* Canvas */
+  .canvas {
+    border: 2px solid var(--primary-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+  }
+  
+  /* Checkbox */
+  .checkbox {
+    font-size: 14px;
+    color: var(--text-color);
+  }
+  
+  /* Progress bar */
+  .progressbar {
+    height: 20px;
+    border-radius: var(--border-radius);
+    background-color: #e0e0e0;
+  }
+  
+  .progressbar .trough {
+    background-color: var(--primary-color);
+  }
+  
+  /* Text area */
+  .text-area {
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    border: 1px solid #ccc;
+    border-radius: var(--border-radius);
+    padding: 10px;
+    background-color: white;
+  }
+  
+  /* Frames */
+  .frame {
+    background-color: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  
+  /* Labels */
+  .label {
+    font-size: 14px;
+    color: var(--text-color);
+    margin-bottom: 5px;
+  }
+  
+  /* Specific element styles */
+  #video-canvas {
+    margin-bottom: 20px;
+  }
+  
+  #control-frame {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+  
+  #results-text {
+    max-height: 200px;
+    overflow-y: auto;
+  }
