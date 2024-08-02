@@ -19,7 +19,7 @@ API_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1
 class VideoAnalysisGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("Video Analysis Tool")
+        self.root.title("SecureSight - By BBSx2")
         self.root.geometry("1200x900")
         
         self.style = ttk.Style()
